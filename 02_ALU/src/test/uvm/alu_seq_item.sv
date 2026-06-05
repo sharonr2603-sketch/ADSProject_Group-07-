@@ -1,28 +1,54 @@
 // ADS I Class Project
-// Assignment 02: Arithmetic Logic Unit and UVM Testbench
-//
-// Chair of Electronic Design Automation, RPTU University Kaiserslautern-Landau
-// File created on 09/21/2025 by Tharindu Samarakoon (gug75kex@rptu.de)
-// File updated on 10/31/2025 by Tobias Jauch (tobias.jauch@rptu.de)
+// Assignment 02: ALU UVM Sequence Item
 
-`include "uvm_macros.svh"
-import uvm_pkg::*;
-import alu_tb_config_pkg::*;
+`ifndef ALU_SEQ_ITEM_SV
+`define ALU_SEQ_ITEM_SV
 
 class alu_seq_item extends uvm_sequence_item;
 
-    //ToDo: define the fields of the sequence item
+  rand bit [31:0] operandA;
+  rand bit [31:0] operandB;
+  rand ALUOp operation;
 
-    //ToDo: register the class with the factory
+  bit [31:0] aluResult;
 
-    //ToDo: add constraint for operation field
+  `uvm_object_utils_begin(alu_seq_item)
+    `uvm_field_int(operandA, UVM_DEFAULT)
+    `uvm_field_int(operandB, UVM_DEFAULT)
+    `uvm_field_enum(ALUOp, operation, UVM_DEFAULT)
+    `uvm_field_int(aluResult, UVM_DEFAULT)
+  `uvm_object_utils_end
 
-    virtual function string convert2str();
-        return $sformatf("operandA: 0x%0x, operandB: 0x%0x, operation: %0p, aluResult: 0x%0x", operandA, operandB, operation, aluResult);
-    endfunction
+  constraint aluOp_constraint {
+    operation inside {
+      ADD,
+      SUB,
+      AND,
+      OR,
+      XOR,
+      SLL,
+      SRL,
+      SRA,
+      SLT,
+      SLTU,
+      PASSB
+    };
+  }
 
-    function new(string name = "alu_seq_item"); 
-        super.new(name);
-    endfunction   
+  function new(string name = "alu_seq_item");
+    super.new(name);
+  endfunction
+
+  virtual function string convert2str();
+    return $sformatf(
+      "operandA: 0x%08h, operandB: 0x%08h, operation: %s, aluResult: 0x%08h",
+      operandA,
+      operandB,
+      operation.name(),
+      aluResult
+    );
+  endfunction
 
 endclass
+
+`endif
