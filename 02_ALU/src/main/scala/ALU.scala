@@ -11,14 +11,82 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental.ChiselEnum
 
-//ToDo: define AluOp Enum
+// ALU operation encoding
+object AluOp extends ChiselEnum {
+  val ADD, SUB, AND, OR, XOR,
+      SLL, SRL, SRA,
+      SLT, SLTU,
+      PASSB = Value
+}
 
 class ALU extends Module {
-  
+
   val io = IO(new Bundle {
-    //ToDo: define IOs
+    val operandA  = Input(UInt(32.W))
+    val operandB  = Input(UInt(32.W))
+    val operation = Input(AluOp())
+
+    val aluResult = Output(UInt(32.W))
   })
 
-  //ToDo: implement ALU functionality according to the task specification
+  // RV32I shift amount uses only lower 5 bits of operandB
+  val shiftAmount = io.operandB(4, 0)
 
+  // Default output for safety
+  io.aluResult := 0.U(32.W)
+
+  switch(io.operation) {
+
+    is(AluOp.ADD) {
+      io.aluResult := io.operandA + io.operandB
+    }
+
+    is(AluOp.SUB) {
+      io.aluResult := io.operandA - io.operandB
+    }
+
+    is(AluOp.AND) {
+      io.aluResult := io.operandA & io.operandB
+    }
+
+    is(AluOp.OR) {
+      io.aluResult := io.operandA | io.operandB
+    }
+
+    is(AluOp.XOR) {
+      io.aluResult := io.operandA ^ io.operandB
+    }
+
+    is(AluOp.SLL) {
+      io.aluResult := io.operandA << shiftAmount
+    }
+
+    is(AluOp.SRL) {
+      io.aluResult := io.operandA >> shiftAmount
+    }
+
+    is(AluOp.SRA) {
+      io.aluResult := (io.operandA.asSInt >> shiftAmount).asUInt
+    }
+
+    is(AluOp.SLT) {
+      io.aluResult := Mux(
+        io.operandA.asSInt < io.operandB.asSInt,
+        1.U(32.W),
+        0.U(32.W)
+      )
+    }
+
+    is(AluOp.SLTU) {
+      io.aluResult := Mux(
+        io.operandA < io.operandB,
+        1.U(32.W),
+        0.U(32.W)
+      )
+    }
+
+    is(AluOp.PASSB) {
+      io.aluResult := io.operandB
+    }
+  }
 }
