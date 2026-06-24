@@ -30,8 +30,31 @@ package core_tile
 
 import chisel3._
 
-// -----------------------------------------
-// MEM-Barrier
-// -----------------------------------------
+class MEMBarrier extends Module {
+  val io = IO(new Bundle {
+    // Inputs from MEM stage
+    val inAluResult = Input(UInt(32.W))
+    val inRD = Input(UInt(5.W))
+    val inException = Input(Bool())
 
-//ToDo: Add your implementation according to the specification above here 
+    // Outputs to WB stage
+    val outAluResult = Output(UInt(32.W))
+    val outRD = Output(UInt(5.W))
+    val outException = Output(Bool())
+  })
+
+  // Pipeline registers
+  val aluResultReg = RegInit(0.U(32.W))
+  val rdReg = RegInit(0.U(5.W))
+  val exceptionReg = RegInit(false.B)
+
+  // Store MEM outputs
+  aluResultReg := io.inAluResult
+  rdReg := io.inRD
+  exceptionReg := io.inException
+
+  // Forward to Writeback stage
+  io.outAluResult := aluResultReg
+  io.outRD := rdReg
+  io.outException := exceptionReg
+}

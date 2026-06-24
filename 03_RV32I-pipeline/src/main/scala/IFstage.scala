@@ -35,15 +35,26 @@ package core_tile
 import chisel3._
 import chisel3.util.experimental.loadMemoryFromFile
 
-// -----------------------------------------
-// Fetch Stage
-// -----------------------------------------
-
-class IF (BinaryFile: String) extends Module {
+class IF(BinaryFile: String) extends Module {
   val io = IO(new Bundle {
-    // ToDo: Add I/O ports
+    // Output instruction fetched from instruction memory
+    val instr = Output(UInt(32.W))
   })
 
-//ToDo: Add your implementation according to the specification above here 
-  
+  // Instruction memory: stores 32-bit instructions
+  val IMem = Mem(4096, UInt(32.W))
+
+  // Load HEX instructions from BinaryFile
+  loadMemoryFromFile(IMem, BinaryFile)
+
+  // Program Counter starts from address 0
+  val PC = RegInit(0.U(32.W))
+
+  // PC is byte-addressed, but memory is word-addressed.
+  // Therefore PC(13,2) is used to access 32-bit instruction words.
+  io.instr := IMem(PC(13, 2))
+
+  // Move to next instruction.
+  // RV32I instructions are 4 bytes, so PC increases by 4.
+  PC := PC + 4.U
 }

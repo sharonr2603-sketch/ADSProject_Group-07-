@@ -23,8 +23,17 @@ package core_tile
 import chisel3._
 import chisel3.experimental.ChiselEnum
 
-// -----------------------------------------
-// Global Definitions and Data Types
-// -----------------------------------------
+// uopc means micro-operation code.
+// Decode stage converts RISC-V instruction into one of these internal operations.
+object uopc extends ChiselEnum {
 
-//ToDo: Add your implementation according to the specification above here 
+  // NOP means no operation.
+  // Used as default/safe instruction.
+  val NOP,
+
+      // R-type operations
+      ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND,
+
+      // I-type operations
+      ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI = Value
+}

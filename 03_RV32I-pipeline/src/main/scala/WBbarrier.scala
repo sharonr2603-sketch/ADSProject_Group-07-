@@ -28,8 +28,28 @@ package core_tile
 
 import chisel3._
 
-// -----------------------------------------
-// WB-Barrier
-// -----------------------------------------
+class WBBarrier extends Module {
+  val io = IO(new Bundle {
+    // Inputs from WB stage
+    val inCheckRes = Input(UInt(32.W))
+    val inXcptInvalid = Input(Bool())
 
-//ToDo: Add your implementation according to the specification above here 
+    // Final outputs to top-level core
+    val outCheckRes = Output(UInt(32.W))
+    val outXcptInvalid = Output(Bool())
+  })
+
+  // Register final result
+  val checkResReg = RegInit(0.U(32.W))
+
+  // Register final exception flag
+  val invalidReg = RegInit(false.B)
+
+  // Store WB outputs
+  checkResReg := io.inCheckRes
+  invalidReg := io.inXcptInvalid
+
+  // Send to top-level output
+  io.outCheckRes := checkResReg
+  io.outXcptInvalid := invalidReg
+}

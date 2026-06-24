@@ -1,12 +1,3 @@
-// ADS I Class Project
-// Pipelined RISC-V Core - Register File
-//
-// Chair of Electronic Design Automation, RPTU in Kaiserslautern
-// File created on 01/09/2026 by Tobias Jauch (@tojauch)
-
-package core_tile
-
-import chisel3._
 
 /*
 Register File Module: 32x32-bit dual-read single-write register file
@@ -35,23 +26,59 @@ Functionality:
 // Register File
 // -----------------------------------------
 
+
+package core_tile
+
+import chisel3._
+
+// Read request contains register address
 class regFileReadReq extends Bundle {
-    //ToDo: implement bundle for read request
+  val addr = UInt(5.W)
 }
 
+// Read response contains register data
 class regFileReadResp extends Bundle {
-    //ToDo: implement bundle for read response
+  val data = UInt(32.W)
 }
 
+// Write request contains address, data, and write enable
 class regFileWriteReq extends Bundle {
-    //ToDo: implement bundle for write request
+  val addr  = UInt(5.W)
+  val data  = UInt(32.W)
+  val wr_en = Bool()
 }
 
 class regFile extends Module {
   val io = IO(new Bundle {
-    //ToDo: Add I/O ports 
-})
+    // First read port for rs1
+    val req_1  = Input(new regFileReadReq)
+    val resp_1 = Output(new regFileReadResp)
 
-//ToDo: Add your implementation according to the specification above here 
+    // Second read port for rs2
+    val req_2  = Input(new regFileReadReq)
+    val resp_2 = Output(new regFileReadResp)
 
+    // One write port for rd
+    val req_3 = Input(new regFileWriteReq)
+  })
+
+  // 32 registers, each 32-bit wide
+  val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+
+  // Read port 1
+  // x0 must always return 0
+  io.resp_1.data := Mux(io.req_1.addr === 0.U, 0.U, registers(io.req_1.addr))
+
+  // Read port 2
+  // x0 must always return 0
+  io.resp_2.data := Mux(io.req_2.addr === 0.U, 0.U, registers(io.req_2.addr))
+
+  // Write data only when write enable is true
+  // Do not allow writing to x0
+  when(io.req_3.wr_en && io.req_3.addr =/= 0.U) {
+    registers(io.req_3.addr) := io.req_3.data
+  }
+
+  // Force x0 to remain zero
+  registers(0) := 0.U
 }

@@ -8,3 +8,4 @@ exec xsim top \
     -testplusarg UVM_VERBOSITY=UVM_FULL \
     -runall \
     -wdb alu_dump.wdb
+    

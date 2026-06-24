@@ -36,8 +36,36 @@ package core_tile
 
 import chisel3._
 
-// -----------------------------------------
-// Writeback Stage
-// -----------------------------------------
+class WB extends Module {
+  val io = IO(new Bundle {
+    // Inputs from MEM/WB barrier
+    val aluResult = Input(UInt(32.W))
+    val rd = Input(UInt(5.W))
+    val exception = Input(Bool())
 
-//ToDo: Add your implementation according to the specification above here 
+    // Write request to register file
+    val regFileReq = Output(new regFileWriteReq)
+
+    // Result checked by testbench
+    val check_res = Output(UInt(32.W))
+
+    // Exception output
+    val XcptInvalid = Output(Bool())
+  })
+
+  // Select destination register
+  io.regFileReq.addr := io.rd
+
+  // Data to write into register file
+  io.regFileReq.data := io.aluResult
+
+  // Write enable.
+  // Do not write if destination is x0.
+  io.regFileReq.wr_en := io.rd =/= 0.U
+
+  // Send result to testbench
+  io.check_res := io.aluResult
+
+  // Forward exception flag
+  io.XcptInvalid := io.exception
+}

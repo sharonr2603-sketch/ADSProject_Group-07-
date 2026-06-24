@@ -51,16 +51,84 @@ package core_tile
 
 import chisel3._
 import chisel3.util._
-import chisel3.util.experimental.loadMemoryFromFile
-import Assignment02.{ALU, ALUOp}
 import uopc._
 
-
-class PipelinedRV32Icore (BinaryFile: String) extends Module {
+class PipelinedRV32Icore(BinaryFile: String) extends Module {
   val io = IO(new Bundle {
-    //ToDo: Add I/O ports
+    val check_res = Output(UInt(32.W))
+    val exception = Output(Bool())
   })
 
-//ToDo: Add your implementation according to the specification above here 
+  val fetch = Module(new IF(BinaryFile))
+  val ifBarrier = Module(new IFBarrier)
 
+  val decode = Module(new ID)
+  val idBarrier = Module(new IDBarrier)
+
+  val execute = Module(new EX)
+  val exBarrier = Module(new EXBarrier)
+
+  // MEM stage is only a placeholder in Assignment 3.
+  // It has no IO, so we instantiate it but do not connect signals to it.
+  val memory = Module(new MEM)
+
+  val memBarrier = Module(new MEMBarrier)
+
+  val writeback = Module(new WB)
+  val wbBarrier = Module(new WBBarrier)
+
+  val registers = Module(new regFile)
+
+  // ---------------- IF -> IF/ID ----------------
+  ifBarrier.io.inInstr := fetch.io.instr
+
+  // ---------------- IF/ID -> ID ----------------
+  decode.io.instr := ifBarrier.io.outInstr
+
+  registers.io.req_1 <> decode.io.regFileReq_A
+  registers.io.req_2 <> decode.io.regFileReq_B
+
+  decode.io.regFileResp_A <> registers.io.resp_1
+  decode.io.regFileResp_B <> registers.io.resp_2
+
+  // ---------------- ID -> ID/EX ----------------
+  idBarrier.io.inUOP := decode.io.uop
+  idBarrier.io.inRD := decode.io.rd
+  idBarrier.io.inOperandA := decode.io.operandA
+  idBarrier.io.inOperandB := decode.io.operandB
+  idBarrier.io.inXcptInvalid := decode.io.XcptInvalid
+
+  // ---------------- ID/EX -> EX ----------------
+  execute.io.uop := idBarrier.io.outUOP
+  execute.io.operandA := idBarrier.io.outOperandA
+  execute.io.operandB := idBarrier.io.outOperandB
+  execute.io.XcptInvalid := idBarrier.io.outXcptInvalid
+
+  // ---------------- EX -> EX/MEM ----------------
+  exBarrier.io.inAluResult := execute.io.aluResult
+  exBarrier.io.inRD := idBarrier.io.outRD
+  exBarrier.io.inXcptInvalid := execute.io.exception
+
+  // ---------------- MEM placeholder ----------------
+
+  // Therefore EX/MEM barrier output is directly passed to MEM/WB barrier.
+  memBarrier.io.inAluResult := exBarrier.io.outAluResult
+  memBarrier.io.inRD := exBarrier.io.outRD
+  memBarrier.io.inException := exBarrier.io.outXcptInvalid
+
+  // ---------------- MEM/WB -> WB ----------------
+  writeback.io.aluResult := memBarrier.io.outAluResult
+  writeback.io.rd := memBarrier.io.outRD
+  writeback.io.exception := memBarrier.io.outException
+
+  // ---------------- WB -> Register File ----------------
+  registers.io.req_3 <> writeback.io.regFileReq
+
+  // ---------------- WB -> WB Barrier ----------------
+  wbBarrier.io.inCheckRes := writeback.io.check_res
+  wbBarrier.io.inXcptInvalid := writeback.io.XcptInvalid
+
+  // ---------------- Final Output ----------------
+  io.check_res := wbBarrier.io.outCheckRes
+  io.exception := wbBarrier.io.outXcptInvalid
 }

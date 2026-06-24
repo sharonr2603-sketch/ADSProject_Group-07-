@@ -11,130 +11,103 @@ import chisel3.util._
 
 
 /** controller class */
-class Controller extends Module{
-  
+class Controller extends Module {
+
   val io = IO(new Bundle {
 
-    // Inputs
+    val reset_n = Input(Bool())
     val rxd = Input(Bool())
-
     val countDone = Input(Bool())
 
-    // Outputs
     val enable = Output(Bool())
-
     val valid = Output(Bool())
   })
 
-  // INTERNAL VARIABLES
-
-  // FSM states
   val idle :: receive :: Nil = Enum(2)
 
-  // Current state register
   val stateReg = RegInit(idle)
 
-  // Registered valid pulse
   val validReg = RegInit(false.B)
 
-  // DEFAULT OUTPUTS
-
-
   io.enable := false.B
+io.valid := validReg
 
-  io.valid := validReg
+when(io.reset_n) {
 
-  // valid pulse lasts only one clock cycle
+  stateReg := idle
   validReg := false.B
 
+}.otherwise {
 
-  // FSM
+  validReg := false.B
 
+  switch(stateReg) {
 
-  switch(stateReg){
+    is(idle) {
 
-
-    // IDLE STATE
-    // Wait for start bit = 0
-
-    is(idle){
-
-      when(io.rxd === false.B){
-
+      when(io.rxd === false.B) {
         stateReg := receive
       }
     }
 
+    is(receive) {
 
-    // RECEIVE STATE
-    // Receive 8 serial bits
-
-
-    is(receive){
-
-      // Enable counter + shift register
       io.enable := true.B
 
-      // 8 bits received
-      when(io.countDone){
+      when(io.countDone) {
 
-        // Generate valid pulse
         validReg := true.B
 
-        // Return to idle
         stateReg := idle
       }
     }
   }
 }
-
-
+}
 /** counter class */
-class Counter extends Module{
-  
+class Counter extends Module {
+
   val io = IO(new Bundle {
 
     val enable = Input(Bool())
+    val reset_n = Input(Bool())
 
     val done = Output(Bool())
   })
 
-
-  // INTERNAL VARIABLES
-
-
-  // 3-bit counter (counts 0 to 7)
   val countReg = RegInit(0.U(3.W))
-
-  // =====================================================
-  // FUNCTIONALITY
-  // =====================================================
 
   io.done := false.B
 
-  when(io.enable){
+  when(io.reset_n) {
 
-    when(countReg === 7.U){
+    countReg := 0.U
 
-      // 8 bits received
-      io.done := true.B
+  }.otherwise {
 
-      // Reset counter
-      countReg := 0.U
+    when(io.enable) {
 
-    }.otherwise{
+      when(countReg === 7.U) {
 
-      // Increment counter
-      countReg := countReg + 1.U
+        io.done := true.B
+
+        countReg := 0.U
+
+      }.otherwise {
+
+        countReg := countReg + 1.U
+      }
     }
   }
 }
 
 
 /** shift register class */
-class ShiftRegister extends Module{
-  
+class ShiftRegister extends Module {
+
   val io = IO(new Bundle {
+
+    val reset_n = Input(Bool())
 
     val enable = Input(Bool())
 
@@ -143,21 +116,15 @@ class ShiftRegister extends Module{
     val parallelOut = Output(UInt(8.W))
   })
 
-  
-  // INTERNAL VARIABLES
-  
-
-  // 8-bit shift register
   val shiftReg = RegInit(0.U(8.W))
 
-  
-  // FUNCTIONALITY
-  
+  when(io.reset_n) {
 
-  when(io.enable){
+    shiftReg := 0.U
 
-    // Shift left and insert new serial bit
-    shiftReg := Cat(shiftReg(6,0), io.serialIn )
+  }.elsewhen(io.enable) {
+
+    shiftReg := Cat(shiftReg(6,0), io.serialIn)
   }
 
   io.parallelOut := shiftReg
@@ -169,14 +136,17 @@ class ShiftRegister extends Module{
   */
 class ReadSerial extends Module{
   
-  val io = IO(new Bundle {
+    val io = IO(new Bundle {
 
-    val rxd = Input(Bool())
+  val rxd = Input(Bool())
 
-    val data = Output(UInt(8.W))
+  val reset_n = Input(Bool())
 
-    val valid = Output(Bool())
-  })
+  val data = Output(UInt(8.W))
+
+  val valid = Output(Bool())
+})
+  
 
 
   
@@ -191,22 +161,22 @@ class ReadSerial extends Module{
 
   
   // CONNECTIONS
-  
 
-  // Controller input
-  controller.io.rxd := io.rxd
+  controller.io.reset_n := io.reset_n
 
-  // Counter done -> controller
-  controller.io.countDone := counter.io.done
+counter.io.reset_n := io.reset_n
 
-  // Controller enable -> counter
-  counter.io.enable := controller.io.enable
+shiftRegister.io.reset_n := io.reset_n
 
-  // Controller enable -> shift register
-  shiftRegister.io.enable := controller.io.enable
+controller.io.rxd := io.rxd
 
-  // Serial input -> shift register
-  shiftRegister.io.serialIn := io.rxd
+controller.io.countDone := counter.io.done
+
+counter.io.enable := controller.io.enable
+
+shiftRegister.io.enable := controller.io.enable
+
+shiftRegister.io.serialIn := io.rxd
 
   
   // OUTPUTS
