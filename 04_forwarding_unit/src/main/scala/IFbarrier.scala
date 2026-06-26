@@ -31,8 +31,19 @@ import chisel3._
 class IFBarrier extends Module {
   val io = IO(new Bundle {
     //ToDo: Add I/O ports
+    val inInstr = Input(UInt(32.W))
+    val outInstr = Output(UInt(32.W))
   })
 
 //ToDo: Add your implementation according to the specification above here 
 
+  // Pipeline register between IF and ID
+  val instrReg = RegInit(0.U(32.W))
+
+  // Store fetched instruction every clock cycle
+  instrReg := io.inInstr
+
+  // Send stored instruction to Decode stage
+  io.outInstr := instrReg
 }
+

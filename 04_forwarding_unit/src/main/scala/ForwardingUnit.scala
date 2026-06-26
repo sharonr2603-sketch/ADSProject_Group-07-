@@ -39,8 +39,32 @@ import uopc._
 class ForwardingUnit extends Module {
   val io = IO(new Bundle {
     // Add I/O ports according to the specification above here
+    val idExRs1 = Input(UInt(5.W))
+    val idExRs2 = Input(UInt(5.W))
+
+    val exMemRd = Input(UInt(5.W))
+    val memWbRd = Input(UInt(5.W))
+
+    val MemWrEn = Input(Bool())
+    val WbWrEn = Input(Bool())
+
+    val forwardA = Output(UInt(2.W))
+    val forwardB = Output(UInt(2.W))
   })
 
   //ToDo: Add your implementation according to the specification above here 
+  io.forwardA := "b00".U
+  io.forwardB := "b00".U
 
+  when(io.MemWrEn && io.exMemRd =/= 0.U && io.exMemRd === io.idExRs1) {
+    io.forwardA := "b10".U
+  }.elsewhen(io.WbWrEn && io.memWbRd =/= 0.U && io.memWbRd === io.idExRs1) {
+    io.forwardA := "b01".U
+  }
+
+  when(io.MemWrEn && io.exMemRd =/= 0.U && io.exMemRd === io.idExRs2) {
+    io.forwardB := "b10".U
+  }.elsewhen(io.WbWrEn && io.memWbRd =/= 0.U && io.memWbRd === io.idExRs2) {
+    io.forwardB := "b01".U
+  }
 }

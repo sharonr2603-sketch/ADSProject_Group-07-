@@ -59,8 +59,84 @@ import uopc._
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     //ToDo: Add I/O ports
+    val check_res = Output(UInt(32.W))
+    val exception = Output(Bool())
   })
+
 
 //ToDo: Add your implementation according to the specification above here 
 
+  val fetch = Module(new IF(BinaryFile))
+  val ifBarrier = Module(new IFBarrier)
+
+  val decode = Module(new ID)
+  val idBarrier = Module(new IDbarrier)
+
+  val execute = Module(new EX)
+  val exBarrier = Module(new EXBarrier)
+
+  val memory = Module(new MEM)
+  val memBarrier = Module(new MEMBarrier)
+
+  val writeback = Module(new WB)
+  val wbBarrier = Module(new WBBarrier)
+
+  val registers = Module(new regFile)
+  val forwarding = Module(new ForwardingUnit)
+
+  ifBarrier.io.inInstr := fetch.io.instr
+
+  decode.io.instr := ifBarrier.io.outInstr
+
+  registers.io.req_1 <> decode.io.regFileReq_A
+  registers.io.req_2 <> decode.io.regFileReq_B
+  decode.io.regFileResp_A <> registers.io.resp_1
+  decode.io.regFileResp_B <> registers.io.resp_2
+
+  idBarrier.io.inUOP := decode.io.uop
+  idBarrier.io.inRD := decode.io.rd
+  idBarrier.io.inRS1 := decode.io.rs1
+  idBarrier.io.inRS2 := decode.io.rs2
+  idBarrier.io.inOperandA := decode.io.operandA
+  idBarrier.io.inOperandB := decode.io.operandB
+  idBarrier.io.inXcptInvalid := decode.io.XcptInvalid
+
+  forwarding.io.idExRs1 := idBarrier.io.outRS1
+  forwarding.io.idExRs2 := idBarrier.io.outRS2
+  forwarding.io.exMemRd := exBarrier.io.outRD
+  forwarding.io.memWbRd := memBarrier.io.outRD
+  forwarding.io.MemWrEn := (exBarrier.io.outRD =/= 0.U)
+  forwarding.io.WbWrEn := (exBarrier.io.outRD =/= 0.U)
+
+  execute.io.operandA := idBarrier.io.outOperandA
+  execute.io.operandB := idBarrier.io.outOperandB
+
+  execute.io.uop := idBarrier.io.outUOP
+  execute.io.XcptInvalid := idBarrier.io.outXcptInvalid
+
+  execute.io.forwardA := forwarding.io.forwardA
+  execute.io.forwardB := forwarding.io.forwardB
+
+  execute.io.exMemAluResult := exBarrier.io.outAluResult
+  execute.io.memWbAluResult := memBarrier.io.outAluResult
+
+  exBarrier.io.inAluResult := execute.io.aluResult
+  exBarrier.io.inRD := idBarrier.io.outRD
+  exBarrier.io.inXcptInvalid := execute.io.exception
+
+  memBarrier.io.inAluResult := exBarrier.io.outAluResult
+  memBarrier.io.inRD := exBarrier.io.outRD
+  memBarrier.io.inException := exBarrier.io.outXcptInvalid
+
+  writeback.io.aluResult := memBarrier.io.outAluResult
+  writeback.io.rd := memBarrier.io.outRD
+  writeback.io.exception := memBarrier.io.outException
+
+  registers.io.req_3 <> writeback.io.regFileReq
+
+  wbBarrier.io.inCheckRes := writeback.io.check_res
+  wbBarrier.io.inXcptInvalid := writeback.io.XcptInvalid
+
+  io.check_res := wbBarrier.io.outCheckRes
+  io.exception := wbBarrier.io.outXcptInvalid
 }
