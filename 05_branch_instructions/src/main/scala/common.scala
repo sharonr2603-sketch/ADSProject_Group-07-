@@ -30,6 +30,37 @@ import chisel3.experimental.ChiselEnum
 //ToDo: Add your implementation according to the specification above here 
 
 object uopc extends ChiselEnum {
-    val NOP, ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND,
-    ADDI, SLLI, SLTI, SLTUI, XORI, ORI, ANDI, SRLI, SRAI = Value
+    
+  val NOP = Value
+
+  val ADD  = Value
+  val SUB  = Value
+  val SLL  = Value
+  val SLT  = Value
+  val SLTU = Value
+  val XOR  = Value
+  val SRL  = Value
+  val SRA  = Value
+  val OR   = Value
+  val AND  = Value
+
+  val ADDI  = Value
+  val SLLI  = Value
+  val SLTI  = Value
+  val SLTUI = Value
+  val XORI  = Value
+  val ORI   = Value
+  val ANDI  = Value
+  val SRLI  = Value
+  val SRAI  = Value
+
+  val BEQ  = Value
+  val BNE  = Value
+  val BLT  = Value
+  val BGE  = Value
+  val BLTU = Value
+  val BGEU = Value
+
+  val JAL  = Value
+  val JALR = Value
 }

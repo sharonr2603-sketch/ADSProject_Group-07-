@@ -50,21 +50,14 @@ The goal of this task is to implement a 5-stage pipeline that features a subset 
 package core_tile
 
 import chisel3._
-import chisel3.util._
-import chisel3.util.experimental.loadMemoryFromFile
-import Assignment02.{ALU, ALUOp}
 import uopc._
 
+class PipelinedRV32Icore(BinaryFile: String) extends Module {
 
-class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
-    //ToDo: Add I/O ports
     val check_res = Output(UInt(32.W))
     val exception = Output(Bool())
   })
-
-
-//ToDo: Add your implementation according to the specification above here 
 
   val fetch = Module(new IF(BinaryFile))
   val ifBarrier = Module(new IFBarrier)
@@ -84,14 +77,23 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val registers = Module(new regFile)
   val forwarding = Module(new ForwardingUnit)
 
+  fetch.io.flush := execute.io.flush
+  fetch.io.branchTarget := execute.io.branchTarget
+
   ifBarrier.io.inInstr := fetch.io.instr
+  ifBarrier.io.inPC := fetch.io.pc
+  ifBarrier.io.flush := execute.io.flush
 
   decode.io.instr := ifBarrier.io.outInstr
+  decode.io.pc := ifBarrier.io.outPC
 
   registers.io.req_1 <> decode.io.regFileReq_A
   registers.io.req_2 <> decode.io.regFileReq_B
+
   decode.io.regFileResp_A <> registers.io.resp_1
   decode.io.regFileResp_B <> registers.io.resp_2
+
+  idBarrier.io.flush := execute.io.flush
 
   idBarrier.io.inUOP := decode.io.uop
   idBarrier.io.inRD := decode.io.rd
@@ -100,18 +102,25 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   idBarrier.io.inOperandA := decode.io.operandA
   idBarrier.io.inOperandB := decode.io.operandB
   idBarrier.io.inXcptInvalid := decode.io.XcptInvalid
+  idBarrier.io.inImmediate := decode.io.immediate
+  idBarrier.io.inPC := decode.io.outPC
 
   forwarding.io.idExRs1 := idBarrier.io.outRS1
   forwarding.io.idExRs2 := idBarrier.io.outRS2
+
   forwarding.io.exMemRd := exBarrier.io.outRD
   forwarding.io.memWbRd := memBarrier.io.outRD
-  forwarding.io.MemWrEn := (exBarrier.io.outRD =/= 0.U)
-  forwarding.io.WbWrEn := (exBarrier.io.outRD =/= 0.U)
+
+  forwarding.io.MemWrEn := exBarrier.io.outRD =/= 0.U
+  forwarding.io.WbWrEn := memBarrier.io.outRD =/= 0.U
+
+  execute.io.uop := idBarrier.io.outUOP
+  execute.io.pc := idBarrier.io.outPC
+  execute.io.immediate := idBarrier.io.outImmediate
 
   execute.io.operandA := idBarrier.io.outOperandA
   execute.io.operandB := idBarrier.io.outOperandB
 
-  execute.io.uop := idBarrier.io.outUOP
   execute.io.XcptInvalid := idBarrier.io.outXcptInvalid
 
   execute.io.forwardA := forwarding.io.forwardA

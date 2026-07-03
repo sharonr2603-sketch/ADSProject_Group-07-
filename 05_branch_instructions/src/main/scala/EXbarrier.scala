@@ -47,6 +47,7 @@ class EXBarrier extends Module {
     val outAluResult = Output(UInt(32.W))
     val outRD = Output(UInt(5.W))
     val outXcptInvalid = Output(Bool())
+
   })
 
   
