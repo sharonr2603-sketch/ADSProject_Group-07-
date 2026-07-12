@@ -62,12 +62,22 @@ class EX extends Module {
     val exMemAluResult = Input(UInt(32.W))
     val memWbAluResult = Input(UInt(32.W))
 
+    val predictTaken = Input(Bool())
+    val predictedTarget = Input(UInt(32.W))
+
     val aluResult = Output(UInt(32.W))
     val exception = Output(Bool())
 
     val branchTarget = Output(UInt(32.W))
     val flush = Output(Bool())
+
+    val btbUpdate = Output(Bool())
+    val btbUpdatePC = Output(UInt(32.W))
+    val btbUpdateTarget = Output(UInt(32.W))
+    val actualTaken = Output(Bool())
   })
+
+  printf(p"EX rd=${io.uop}\n")
 
   val forwardedA = Wire(UInt(32.W))
   val forwardedB = Wire(UInt(32.W))
@@ -182,11 +192,42 @@ class EX extends Module {
 
   }
 
-  io.flush := branchTaken || (io.uop === JAL) || (io.uop === JALR)
+    val isBranch = WireDefault(false.B)
+    val isJump = WireDefault(false.B)
+
+    switch(io.uop) {
+    is(BEQ, BNE, BLT, BGE, BLTU, BGEU) {
+        isBranch := true.B
+    }
+
+    is(JAL, JALR) {
+        isJump := true.B
+    }
+    }
+ 
+  val actualTaken = branchTaken || isJump
+
+  io.actualTaken := actualTaken
+
+    val mispredict = WireDefault(false.B)
+
+    when(isBranch || isJump) {
+    mispredict :=
+        (io.predictTaken =/= actualTaken) ||
+        (io.predictTaken &&
+        actualTaken &&
+        (io.predictedTarget =/= io.branchTarget))
+    }
+
+  io.flush := mispredict
+
+  io.btbUpdate := isBranch || isJump
+  io.btbUpdatePC := io.pc
+  io.btbUpdateTarget := io.branchTarget
 
   io.exception := io.XcptInvalid
 
-  printf(p"uop=${io.uop} A=${forwardedA} B=${forwardedB} imm=${io.immediate} aluB=${aluOperandB} result=${io.aluResult} flush=${io.flush} target=${io.branchTarget}\n")
+  printf(p"[EX] Predict=${io.predictTaken} Actual=${actualTaken} PredTarget=${io.predictedTarget} ActualTarget=${io.branchTarget} Mispredict=${mispredict}\n")
 }
 
 

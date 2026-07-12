@@ -1,20 +1,20 @@
-00000013 // ADDI x0, x0, 0
-00400093 // ADDI x1, x0, 4
-00500113 // ADDI x2, x0, 5
-002081b3 // ADD x3, x1, x2
-7ff00213 // ADDI x4, x0, 2047
-01000293 // ADDI x5, x0, 16
-40520333 // SUB x6, x4, x5
-003343b3 // XOR x7, x6, x3
-00536433 // OR x8, x6, x5
-005374b3 // AND x9, x6, x5
-00239533 // SLL x10, x7, x2
-0023d5b3 // SRL x11, x7, x2
-4023d633 // SRA x12, x7, x2
-004226b3 // SLT x13, x4, x4
-005226b3 // SLT x13, x4, x5
-0042a6b3 // SLT x13, x5, x4
-004236b3 // SLTU x13, x4, x4
-005236b3 // SLTU x13, x4, x5
-0042b6b3 // SLTU x13, x5, x4
-021141b3 // DIV x3, x2, x1 (NOT IMPLEMENTED!)
+00500093    // ADDI x1, x0, 5          ; x1 = 5
+00500113    // ADDI x2, x0, 5          ; x2 = 5
+
+00208663    // BEQ  x1, x2, +12        ; Branch taken (5 == 5)
+                                      ; Jump to PC + 12 (skip next 2 instructions)
+
+38500293    // ADDI x5, x0, 901        ; Wrong-path instruction
+                                      ; Must be flushed after branch resolution
+
+38600293    // ADDI x5, x0, 902        ; Wrong-path instruction
+                                      ; Must be flushed after branch resolution
+
+06500293    // ADDI x5, x0, 101        ; Branch target
+                                      ; Executes only if BEQ is taken
+
+ff1ff06f    // JAL  x0, -16            ; Jump back to BEQ
+                                      ; Creates an infinite loop
+                                      ; Allows BTB to see the same branch repeatedly
+                                      ; First iteration: BTB miss
+                                      ; Later iterations: BTB hit & prediction

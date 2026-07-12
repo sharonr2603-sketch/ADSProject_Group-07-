@@ -31,17 +31,57 @@ package core_tile
 
 import chisel3._
 import chisel3.util._
-import uopc._
-
-// -----------------------------------------
-// Branch Target Buffer
-// -----------------------------------------
 
 class BTB extends Module {
+
   val io = IO(new Bundle {
-    // Add I/O ports according to the specification above here
+
+    val update = Input(Bool())
+    val updatePC = Input(UInt(32.W))
+    val updateTarget = Input(UInt(32.W))
+    val actualTaken = Input(Bool())
+    val PC = Input(UInt(32.W))
+
+    val valid = Output(Bool())
+    val target = Output(UInt(32.W))
+    val predictTaken = Output(Bool())
+
+
   })
 
-  //ToDo: Add your implementation according to the specification in assignment 6 here. 
+  val entries = 8
 
+  val validBits = RegInit(VecInit(Seq.fill(entries)(false.B)))
+  val tags = Reg(Vec(entries, UInt(32.W)))
+  val targets = Reg(Vec(entries, UInt(32.W)))
+  val prediction = RegInit(VecInit(Seq.fill(entries)("b01".U(2.W))))
+
+  val lookupIndex = io.PC(4, 2)
+  val updateIndex = io.updatePC(4, 2)
+
+  io.valid := validBits(lookupIndex) &&
+              (tags(lookupIndex) === io.PC)
+
+  io.target := targets(lookupIndex)
+
+  io.predictTaken := prediction(lookupIndex)(1)
+
+  when(io.update) {
+  validBits(updateIndex) := true.B
+  tags(updateIndex) := io.updatePC
+  targets(updateIndex) := io.updateTarget
+
+  when(io.actualTaken) {
+    when(prediction(updateIndex) =/= "b11".U) {
+      prediction(updateIndex) := prediction(updateIndex) + 1.U
+    }
+  }.otherwise {
+    when(prediction(updateIndex) =/= "b00".U) {
+      prediction(updateIndex) := prediction(updateIndex) - 1.U
+    }
+  }
+  printf(p"[BTB Update] PC=${io.updatePC} Target=${io.updateTarget} Taken=${io.actualTaken} State=${prediction(updateIndex)}\n")
+}
+
+printf(p"[BTB Lookup] PC=${io.PC} Valid=${io.valid} PredictTaken=${io.predictTaken} Target=${io.target}\n")
 }

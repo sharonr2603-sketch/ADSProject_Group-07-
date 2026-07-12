@@ -56,6 +56,12 @@ class IDbarrier extends Module {
 
     val flush = Input(Bool())
 
+    val inPredictTaken = Input(Bool())
+    val inPredictedTarget = Input(UInt(32.W))
+
+    val outPredictTaken = Output(Bool())
+    val outPredictedTarget = Output(UInt(32.W))
+
     val outUOP = Output(uopc())
     val outRD = Output(UInt(5.W))
     val outRS1 = Output(UInt(5.W))
@@ -77,27 +83,39 @@ class IDbarrier extends Module {
   val pcReg = RegInit(0.U(32.W))
   val immediateReg = RegInit(0.U(32.W))
 
-  when(io.flush) {
-    uopReg := NOP
-    rdReg := 0.U
-    rs1Reg := 0.U
-    rs2Reg := 0.U
-    operandAReg := 0.U
-    operandBReg := 0.U
-    exceptionReg := false.B
-    pcReg := 0.U
-    immediateReg := 0.U
-  }.otherwise {
-    uopReg := io.inUOP
-    rdReg := io.inRD
-    rs1Reg := io.inRS1
-    rs2Reg := io.inRS2
-    operandAReg := io.inOperandA
-    operandBReg := io.inOperandB
-    exceptionReg := io.inXcptInvalid
-    pcReg := io.inPC
-    immediateReg := io.inImmediate
-  }
+  val predictTakenReg = RegInit(false.B)
+  val predictedTargetReg = RegInit(0.U(32.W))
+
+    when(io.flush) {
+
+        uopReg := NOP
+        rdReg := 0.U
+        rs1Reg := 0.U
+        rs2Reg := 0.U
+        operandAReg := 0.U
+        operandBReg := 0.U
+        exceptionReg := false.B
+        pcReg := io.inPC
+        immediateReg := 0.U
+
+        predictTakenReg := false.B
+        predictedTargetReg := 0.U
+
+    }.otherwise {
+
+        uopReg := io.inUOP
+        rdReg := io.inRD
+        rs1Reg := io.inRS1
+        rs2Reg := io.inRS2
+        operandAReg := io.inOperandA
+        operandBReg := io.inOperandB
+        exceptionReg := io.inXcptInvalid
+        pcReg := io.inPC
+        immediateReg := io.inImmediate
+
+        predictTakenReg := io.inPredictTaken
+        predictedTargetReg := io.inPredictedTarget
+    }
 
   io.outUOP := uopReg
   io.outRD := rdReg
@@ -108,5 +126,10 @@ class IDbarrier extends Module {
   io.outXcptInvalid := exceptionReg
   io.outPC := pcReg
   io.outImmediate := immediateReg
+
+  io.outPredictTaken := predictTakenReg
+  io.outPredictedTarget := predictedTargetReg
+
+  printf(p"IDBarrier inRD=${io.inRD} outRD=${io.outRD} uop=${io.outUOP}\n")
   
 }

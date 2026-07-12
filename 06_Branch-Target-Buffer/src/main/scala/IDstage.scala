@@ -161,6 +161,7 @@ class ID extends Module {
 
     is("b1100011".U) {
       io.immediate := immB
+      io.rd := 0.U
 
       switch(funct3){
         is("b000".U){ io.uop:=BEQ ; validInstr:=true.B }
@@ -193,6 +194,8 @@ class ID extends Module {
   when(!validInstr && io.instr =/= 0.U && io.instr =/= "h00000013".U){
     io.XcptInvalid := true.B
   }
+
+  printf(p"ID opcode=${opcode} rd=${io.rd} uop=${io.uop}\n")
 }
 
 

@@ -62,7 +62,13 @@ class WB extends Module {
 
   io.regFileReq.wr_en := io.rd =/= 0.U
 
-  io.check_res := io.aluResult
+  when(io.rd === 0.U) {
+        io.check_res := 0.U
+    }.otherwise {
+        io.check_res := io.aluResult
+    }
 
   io.XcptInvalid := io.exception
+
+  printf(p"[WB] rd=${io.rd} Result=${io.check_res}\n")
 }

@@ -30,6 +30,12 @@ class IFBarrier extends Module {
     val inPC = Input(UInt(32.W))
     val flush = Input(Bool())
 
+    val inPredictTaken = Input(Bool())
+    val inPredictedTarget = Input(UInt(32.W))
+
+    val outPredictTaken = Output(Bool())
+    val outPredictedTarget = Output(UInt(32.W))
+
     val outInstr = Output(UInt(32.W))
     val outPC = Output(UInt(32.W))
   })
@@ -37,16 +43,30 @@ class IFBarrier extends Module {
   val instrReg = RegInit("h00000013".U(32.W))
   val pcReg = RegInit(0.U(32.W))
 
+  val predictTakenReg = RegInit(false.B)
+  val predictedTargetReg = RegInit(0.U(32.W))
+
   when(io.flush) {
     instrReg := "h00000013".U
     pcReg := io.inPC
+
+    predictTakenReg := false.B
+    predictedTargetReg := 0.U
+
   }.otherwise {
     instrReg := io.inInstr
     pcReg := io.inPC
+
+    predictTakenReg := io.inPredictTaken
+    predictedTargetReg := io.inPredictedTarget
+
   }
 
   io.outInstr := instrReg
   io.outPC := pcReg
+
+  io.outPredictTaken := predictTakenReg
+  io.outPredictedTarget := predictedTargetReg
 }
 
 

@@ -42,13 +42,18 @@ import chisel3.util.experimental.loadMemoryFromFile
 
 class IF(BinaryFile: String) extends Module {
   val io = IO(new Bundle {
-    val instr = Output(UInt(32.W))
+    
 
     val flush = Input(Bool())
     val branchTarget = Input(UInt(32.W))
 
+    val btbHit = Input(Bool())
+    val btbTarget = Input(UInt(32.W))
+    val predictTaken = Input(Bool())
+
     val pc = Output(UInt(32.W))
-  })
+    val instr = Output(UInt(32.W))
+    })
 
   val IMem = Mem(4096, UInt(32.W))
   loadMemoryFromFile(IMem, BinaryFile)
@@ -59,10 +64,18 @@ class IF(BinaryFile: String) extends Module {
   io.instr := IMem(PC(13, 2))
 
   when(io.flush) {
+
     PC := io.branchTarget
-  }.otherwise {
-    PC := PC + 4.U
-  }
+
+    }.elsewhen(io.btbHit && io.predictTaken) {
+
+        PC := io.btbTarget
+
+    }.otherwise {
+
+        PC := PC + 4.U
+
+    }
 }
 
 

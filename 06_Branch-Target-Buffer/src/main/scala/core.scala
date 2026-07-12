@@ -62,6 +62,8 @@ class PipelinedRV32Icore(BinaryFile: String) extends Module {
   val fetch = Module(new IF(BinaryFile))
   val ifBarrier = Module(new IFBarrier)
 
+  val btb = Module(new BTB)
+
   val decode = Module(new ID)
   val idBarrier = Module(new IDbarrier)
 
@@ -80,9 +82,22 @@ class PipelinedRV32Icore(BinaryFile: String) extends Module {
   fetch.io.flush := execute.io.flush
   fetch.io.branchTarget := execute.io.branchTarget
 
+  fetch.io.btbHit := btb.io.valid
+  fetch.io.btbTarget := btb.io.target
+  fetch.io.predictTaken := btb.io.predictTaken
+
+  btb.io.PC := fetch.io.pc
+
+  btb.io.update := execute.io.btbUpdate
+  btb.io.updatePC := execute.io.btbUpdatePC
+  btb.io.updateTarget := execute.io.btbUpdateTarget
+  btb.io.actualTaken := execute.io.actualTaken
+
   ifBarrier.io.inInstr := fetch.io.instr
   ifBarrier.io.inPC := fetch.io.pc
   ifBarrier.io.flush := execute.io.flush
+  ifBarrier.io.inPredictTaken := fetch.io.predictTaken
+  ifBarrier.io.inPredictedTarget := fetch.io.btbTarget
 
   decode.io.instr := ifBarrier.io.outInstr
   decode.io.pc := ifBarrier.io.outPC
@@ -105,6 +120,9 @@ class PipelinedRV32Icore(BinaryFile: String) extends Module {
   idBarrier.io.inImmediate := decode.io.immediate
   idBarrier.io.inPC := decode.io.outPC
 
+  idBarrier.io.inPredictTaken := ifBarrier.io.outPredictTaken
+  idBarrier.io.inPredictedTarget := ifBarrier.io.outPredictedTarget
+
   forwarding.io.idExRs1 := idBarrier.io.outRS1
   forwarding.io.idExRs2 := idBarrier.io.outRS2
 
@@ -112,7 +130,7 @@ class PipelinedRV32Icore(BinaryFile: String) extends Module {
   forwarding.io.memWbRd := memBarrier.io.outRD
 
   forwarding.io.MemWrEn := exBarrier.io.outRD =/= 0.U
-  forwarding.io.WbWrEn := memBarrier.io.outRD =/= 0.U
+  forwarding.io.WbWrEn := memBarrier.io.outRD =/= 0.U   
 
   execute.io.uop := idBarrier.io.outUOP
   execute.io.pc := idBarrier.io.outPC
@@ -128,6 +146,9 @@ class PipelinedRV32Icore(BinaryFile: String) extends Module {
 
   execute.io.exMemAluResult := exBarrier.io.outAluResult
   execute.io.memWbAluResult := memBarrier.io.outAluResult
+
+  execute.io.predictTaken := idBarrier.io.outPredictTaken
+  execute.io.predictedTarget := idBarrier.io.outPredictedTarget
 
   exBarrier.io.inAluResult := execute.io.aluResult
   exBarrier.io.inRD := idBarrier.io.outRD
