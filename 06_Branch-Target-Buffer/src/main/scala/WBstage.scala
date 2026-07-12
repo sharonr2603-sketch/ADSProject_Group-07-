@@ -41,3 +41,28 @@ import chisel3._
 // -----------------------------------------
 
 //ToDo: Add your implementation according to the specification above here 
+class WB extends Module {
+  val io = IO(new Bundle {
+
+    val aluResult = Input(UInt(32.W))
+    val rd = Input(UInt(5.W))
+    val exception = Input(Bool())
+
+    val regFileReq = Output(new regFileWriteReq)
+
+    val check_res = Output(UInt(32.W))
+
+    val XcptInvalid = Output(Bool())
+  })
+
+ 
+  io.regFileReq.addr := io.rd
+
+  io.regFileReq.data := io.aluResult
+
+  io.regFileReq.wr_en := io.rd =/= 0.U
+
+  io.check_res := io.aluResult
+
+  io.XcptInvalid := io.exception
+}
