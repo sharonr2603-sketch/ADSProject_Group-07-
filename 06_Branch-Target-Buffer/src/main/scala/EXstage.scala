@@ -205,23 +205,26 @@ class EX extends Module {
     }
     }
  
-  val actualTaken = branchTaken || isJump
+  val actualTaken = branchTaken 
 
   io.actualTaken := actualTaken
 
     val mispredict = WireDefault(false.B)
 
-    when(isBranch || isJump) {
+    when(isBranch) {
     mispredict :=
         (io.predictTaken =/= actualTaken) ||
         (io.predictTaken &&
         actualTaken &&
         (io.predictedTarget =/= io.branchTarget))
     }
+    when(isJump) {
+    mispredict := true.B
+  }
 
   io.flush := mispredict
 
-  io.btbUpdate := isBranch || isJump
+  io.btbUpdate := isBranch
   io.btbUpdatePC := io.pc
   io.btbUpdateTarget := io.branchTarget
 

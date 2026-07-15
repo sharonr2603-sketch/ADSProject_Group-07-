@@ -80,8 +80,22 @@ class BTB extends Module {
       prediction(updateIndex) := prediction(updateIndex) - 1.U
     }
   }
-  printf(p"[BTB Update] PC=${io.updatePC} Target=${io.updateTarget} Taken=${io.actualTaken} State=${prediction(updateIndex)}\n")
+  printf(p"""
+******** BTB UPDATE ********
+Branch PC       : ${io.updatePC}
+Actual Target   : ${io.updateTarget}
+Actual Taken    : ${io.actualTaken}
+Old State       : ${prediction(updateIndex)}
+****************************
+""")
 }
 
-printf(p"[BTB Lookup] PC=${io.PC} Valid=${io.valid} PredictTaken=${io.predictTaken} Target=${io.target}\n")
+printf(p"""
+================ BTB LOOKUP ================
+Current PC       : ${io.PC}
+BTB Hit          : ${io.valid}
+Predict Taken    : ${io.predictTaken}
+Predicted Target : ${io.target}
+============================================
+""")
 }

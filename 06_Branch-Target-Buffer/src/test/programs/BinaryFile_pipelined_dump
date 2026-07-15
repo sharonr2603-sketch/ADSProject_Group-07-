@@ -1,20 +1,22 @@
-00500093    // ADDI x1, x0, 5          ; x1 = 5
-00500113    // ADDI x2, x0, 5          ; x2 = 5
+PC   Instruction
 
-00208663    // BEQ  x1, x2, +12        ; Branch taken (5 == 5)
-                                      ; Jump to PC + 12 (skip next 2 instructions)
+0    ADDI x1, x0, 5
+4    ADDI x2, x0, 5
 
-38500293    // ADDI x5, x0, 901        ; Wrong-path instruction
-                                      ; Must be flushed after branch resolution
+8    BEQ  x1, x2, +12        ; Taken -> jump to PC=20
 
-38600293    // ADDI x5, x0, 902        ; Wrong-path instruction
-                                      ; Must be flushed after branch resolution
+12   ADDI x5, x0, 901        ; Flushed
+16   ADDI x5, x0, 902        ; Flushed
 
-06500293    // ADDI x5, x0, 101        ; Branch target
-                                      ; Executes only if BEQ is taken
+20   ADDI x6, x0, 101
+24   ADDI x7, x0, 100
 
-ff1ff06f    // JAL  x0, -16            ; Jump back to BEQ
-                                      ; Creates an infinite loop
-                                      ; Allows BTB to see the same branch repeatedly
-                                      ; First iteration: BTB miss
-                                      ; Later iterations: BTB hit & prediction
+28   BNE  x5, x6, +12         ; If x5 != x6, jump to ADDI
+                             ; Since x5 == x6 here, branch NOT taken
+
+32   ADDI x8, x0, 55         ; x7==0
+
+36   JAL  x0, -28            ; Jump back to BEQ
+
+40  ADDI x9,x0, 4
+44  BLT  x9,x1, -12,
