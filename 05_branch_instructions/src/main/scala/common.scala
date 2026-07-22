@@ -30,7 +30,7 @@ import chisel3.experimental.ChiselEnum
 //ToDo: Add your implementation according to the specification above here 
 
 object uopc extends ChiselEnum {
-    
+
   val NOP = Value
 
   val ADD  = Value

@@ -16,8 +16,8 @@ Memory:
 
 Ports:
     req_1, resp_1: first read port
-        req_1.addr: read address for register x[0-31]
-        resp_1.data: register data output
+        req_1.addr: read address for register x[0-31]   - request
+        resp_1.data: register data output               - response
     req_2, resp_2: second read port
         req_2.addr: read address for register x[0-31]
         resp_2.data: register data output
@@ -29,10 +29,6 @@ Ports:
 Functionality:
     Two read ports allow simultaneous reading of two operands
     Synchronous write updates register if wr_en is asserted
-
-
-Special Case for hazard resolution:    
-    If a register is read and written in the same clock cycle, send the new data to data output!
 */
 
 // -----------------------------------------
@@ -41,53 +37,59 @@ Special Case for hazard resolution:
 
 class regFileReadReq extends Bundle {
     //ToDo: implement bundle for read request
-    val addr = UInt(5.W)
+    val addr = Input(UInt(5.W))            //addr tells the register file which register to read.
 }
 
 class regFileReadResp extends Bundle {
     //ToDo: implement bundle for read response
-    val data = UInt(32.W)
+    val data = Output(UInt(32.W))          //data gives the value stored in the selected register.
 }
 
 class regFileWriteReq extends Bundle {
     //ToDo: implement bundle for write request
-    val addr  = UInt(5.W)
-    val data  = UInt(32.W)
-    val wr_en = Bool()
+    val addr  = Input(UInt(5.W))             //Which register to write.
+    val data  = Input(UInt(32.W))           //what value to write
+    val wr_en = Input(Bool())               //write enable
 }
-
+//Implements the 32-register RISC-V register file, used to read source registers and write destination registers.
 class regFile extends Module {
   val io = IO(new Bundle {
     //ToDo: Add I/O ports 
-    val req_1  = Input(new regFileReadReq)
-    val resp_1 = Output(new regFileReadResp)
+    val req_1  = new regFileReadReq  //rs1
+    val resp_1 = new regFileReadResp
 
-    val req_2  = Input(new regFileReadReq)
-    val resp_2 = Output(new regFileReadResp)
+    val req_2  = new regFileReadReq  //rs2
+    val resp_2 = new regFileReadResp
 
-    val req_3 = Input(new regFileWriteReq)
+    val req_3  = new regFileWriteReq  //rd
 })
 
 //ToDo: Add your implementation according to the specification above here 
-    val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+    val registers = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))  // Create 32 registers, each 32-bit wide, initialized to 0
 
-    val write1 = io.req_3.wr_en &&
-                    io.req_3.addr =/= 0.U &&
-                    io.req_3.addr === io.req_1.addr
+//// MUX: Read register data and handle same-cycle read-after-write (RAW) hazard
+    io.resp_1.data := Mux(
+    io.req_1.addr === 0.U,   //If reading x0, always return 0
+    0.U,
+    Mux(             //Same-cycle Read and Write  //If the same register is being written and read in the same clock cycle → return the new data
+        io.req_3.wr_en && (io.req_3.addr =/= 0.U) && (io.req_3.addr === io.req_1.addr),
+        io.req_3.data,             //write and read
+        registers(io.req_1.addr)   //normal read
+    )
+    )
 
-    val write2 = io.req_3.wr_en &&
-                    io.req_3.addr =/= 0.U &&
-                    io.req_3.addr === io.req_2.addr
-
-    io.resp_1.data := Mux(io.req_1.addr === 0.U, 0.U,
-                        Mux(write1, io.req_3.data, registers(io.req_1.addr)))
-
-    io.resp_2.data := Mux(io.req_2.addr === 0.U, 0.U,
-                        Mux(write2, io.req_3.data, registers(io.req_2.addr)))
-
+    io.resp_2.data := Mux(
+    io.req_2.addr === 0.U,
+    0.U,
+    Mux(
+        io.req_3.wr_en && (io.req_3.addr =/= 0.U) && (io.req_3.addr === io.req_2.addr),
+        io.req_3.data,
+        registers(io.req_2.addr)
+    )
+    )
+    //Writes data into the destination register.
     when(io.req_3.wr_en && io.req_3.addr =/= 0.U) {
-        registers(io.req_3.addr) := io.req_3.data
+        registers(io.req_3.addr) := io.req_3.data    // Write port: write data only when write enable is true and destination is not x0
     }
-
-    registers(0) := 0.U
 }
+

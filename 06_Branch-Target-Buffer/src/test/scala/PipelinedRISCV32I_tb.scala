@@ -14,26 +14,25 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       dut.clock.setTimeout(0)
 
-      // Fill the pipeline
       dut.clock.step(5)
 
-      // First two ADDIs
+    
       waitForResult(dut, 5)
       waitForResult(dut, 5)
 
-      // Target of first BEQ
+
       waitForResult(dut, 101)
 
-      // Next ADDI
+      
       waitForResult(dut, 100)
 
-      // This instruction executes later after BLT jumps back
+     
       waitForResult(dut, 55)
 
-      // Last ADDI
+     
       waitForResult(dut, 4)
 
-      // Allow another loop so BTB predictions can be observed
+     
       dut.clock.step(20)
 
       dut.io.exception.expect(false.B)
@@ -62,4 +61,6 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
     assert(found, s"Result $value not observed within $maxCycles cycles")
   }
+
 }
+

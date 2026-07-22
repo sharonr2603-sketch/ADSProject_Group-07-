@@ -39,36 +39,30 @@ import chisel3._
 // -----------------------------------------
 // Writeback Stage
 // -----------------------------------------
-
-//ToDo: Add your implementation according to the specification above here 
 class WB extends Module {
   val io = IO(new Bundle {
-
-    val aluResult = Input(UInt(32.W))
-    val rd = Input(UInt(5.W))
-    val exception = Input(Bool())
+    val aluResult     = Input(UInt(32.W))  //Receives the result computed by the ALU.
+    val rd            = Input(UInt(5.W))  //Destination register number
+    val inXcptInvalid = Input(Bool())
 
     val regFileReq = Output(new regFileWriteReq)
 
     val check_res = Output(UInt(32.W))
-
-    val XcptInvalid = Output(Bool())
+    val exception = Output(Bool())
   })
 
- 
-  io.regFileReq.addr := io.rd
+  io.regFileReq.addr  := io.rd                        //Where to write
 
-  io.regFileReq.data := io.aluResult
+  io.regFileReq.data  := io.aluResult                 //What to write
 
-  io.regFileReq.wr_en := io.rd =/= 0.U
+  io.regFileReq.wr_en := !io.inXcptInvalid            //Writes if there is no exception
 
-  when(io.rd === 0.U) {
-        io.check_res := 0.U
-    }.otherwise {
-        io.check_res := io.aluResult
-    }
-
-  io.XcptInvalid := io.exception
-
-  printf(p"[WB] rd=${io.rd} Result=${io.check_res}\n")
+  io.check_res := io.aluResult                        //check_res: result value for verification
+  io.exception := io.inXcptInvalid
 }
+// -----------------------------------------
+// Writeback Stage
+// -----------------------------------------
+
+//ToDo: Add your implementation according to the specification above here 
+

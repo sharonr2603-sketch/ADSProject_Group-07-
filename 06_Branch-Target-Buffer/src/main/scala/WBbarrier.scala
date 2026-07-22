@@ -29,32 +29,27 @@ package core_tile
 import chisel3._
 
 // -----------------------------------------
-// WB-Barrier
+// WB-Barrier -- // Registers the final output values of the processor.
 // -----------------------------------------
-
-//ToDo: Add your implementation according to the specification above here 
 class WBBarrier extends Module {
   val io = IO(new Bundle {
-    
-    val inCheckRes = Input(UInt(32.W))
-    val inXcptInvalid = Input(Bool())
+    val inCheckRes     = Input(UInt(32.W))
+    val inXcptInvalid  = Input(Bool())
 
-    
-    val outCheckRes = Output(UInt(32.W))
+    val outCheckRes    = Output(UInt(32.W))
     val outXcptInvalid = Output(Bool())
   })
 
-  
-  val checkResReg = RegInit(0.U(32.W))
+  val checkResReg    = RegInit(0.U(32.W))
+  val xcptInvalidReg = RegInit(false.B)
 
-  
-  val invalidReg = RegInit(false.B)
+  checkResReg    := io.inCheckRes
+  xcptInvalidReg := io.inXcptInvalid
 
-  
-  checkResReg := io.inCheckRes
-  invalidReg := io.inXcptInvalid
-
-  
-  io.outCheckRes := checkResReg
-  io.outXcptInvalid := invalidReg
+  io.outCheckRes    := checkResReg
+  io.outXcptInvalid := xcptInvalidReg
 }
+
+
+//ToDo: Add your implementation according to the specification above here 
+

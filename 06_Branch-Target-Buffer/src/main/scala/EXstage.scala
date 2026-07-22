@@ -1,238 +1,107 @@
-// ADS I Class Project
-// Pipelined RISC-V Core - EX Stage
-//
-// Chair of Electronic Design Automation, RPTU in Kaiserslautern
-// File created on 01/09/2026 by Tobias Jauch (@tojauch)
-
-/*
-Instruction Execute (EX) Stage: ALU operations and exception detection
-
-Instantiated Modules:
-    ALU: Integrate your module from Assignment02 for arithmetic/logical operations
-
-ALU Interface:
-    alu.io.operandA: first operand input
-    alu.io.operandB: second operand input
-    alu.io.operation: operation code controlling ALU function
-    alu.io.aluResult: computation result output
-
-Internal Signals:
-    Map uopc codes to ALUOp values
-
-Functionality:
-    Map instruction uop to ALU operation code
-    Pass operands to ALU
-    Output results to pipeline
-
-Outputs:
-    aluResult: computation result from ALU
-    exception: pass exception flag
-    branchTarget: calculated branch target address for conditional branch instructions
-    flush: control signal to flush pipeline on mispredicted branches
-*/
-
 package core_tile
 
 import chisel3._
 import chisel3.util._
-import Assignment02.{ALU, ALUOp}
 import uopc._
 
-// -----------------------------------------
-// Execute Stage
-// -----------------------------------------
-
-//ToDo: Add your implementation according to the specification above here 
 class EX extends Module {
-
   val io = IO(new Bundle {
+    val inUOP = Input(uopc())
+    val inRD = Input(UInt(5.W))
+    val inOperandA = Input(UInt(32.W))
+    val inOperandB = Input(UInt(32.W))
+    val inXcptInvalid = Input(Bool())
+    val inPC = Input(UInt(32.W))
+    val inImmB = Input(UInt(32.W))
+    val inImmJ = Input(UInt(32.W))
+    val inImmI = Input(UInt(32.W))
+    val inPredictTaken = Input(Bool()) // Input branch prediction from the BTB.
+    val inPredictedTarget = Input(UInt(32.W)) // Input predicted branch target from the BTB.
 
-    val uop = Input(uopc())
-    val pc = Input(UInt(32.W))
-    val immediate = Input(UInt(32.W))
-
-    val operandA = Input(UInt(32.W))
-    val operandB = Input(UInt(32.W))
-
-    val XcptInvalid = Input(Bool())
-
-    val forwardA = Input(UInt(2.W))
-    val forwardB = Input(UInt(2.W))
-
-    val exMemAluResult = Input(UInt(32.W))
-    val memWbAluResult = Input(UInt(32.W))
-
-    val predictTaken = Input(Bool())
-    val predictedTarget = Input(UInt(32.W))
-
+    val outRD = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
-    val exception = Output(Bool())
-
-    val branchTarget = Output(UInt(32.W))
-    val flush = Output(Bool())
-
-    val btbUpdate = Output(Bool())
-    val btbUpdatePC = Output(UInt(32.W))
-    val btbUpdateTarget = Output(UInt(32.W))
-    val actualTaken = Output(Bool())
+    val outXcptInvalid = Output(Bool())
+    val redirect = Output(Bool()) //output signal when the branch redirect is incorrect
+    val redirectPC = Output(UInt(32.W))  //o/p the correct PC for pipeline redirection
+    val btbUpdate = Output(Bool())  //signal to update the Branch tgt buffer
+    val btbPC = Output(UInt(32.W)) //o/p branch PC used for BTB Update
+    val btbTarget = Output(UInt(32.W)) //actual branch tgt address for btb
+    val btbMispredicted = Output(Bool()) //o/p wether the btb prediction was incorrect
   })
 
-  printf(p"EX rd=${io.uop}\n")
-
-  val forwardedA = Wire(UInt(32.W))
-  val forwardedB = Wire(UInt(32.W))
-
-  forwardedA := io.operandA
-  forwardedB := io.operandB
-
-  switch(io.forwardA) {
-    is("b10".U) { forwardedA := io.exMemAluResult }
-    is("b01".U) { forwardedA := io.memWbAluResult }
-  }
-
-  switch(io.forwardB) {
-    is("b10".U) { forwardedB := io.exMemAluResult }
-    is("b01".U) { forwardedB := io.memWbAluResult }
-  }
-
-  val aluOperandB = Wire(UInt(32.W))
-  aluOperandB := forwardedB
-
-  switch(io.uop) {
-
-    is(ADDI)  { aluOperandB := io.immediate }
-    is(SLTI)  { aluOperandB := io.immediate }
-    is(SLTUI) { aluOperandB := io.immediate }
-    is(XORI)  { aluOperandB := io.immediate }
-    is(ORI)   { aluOperandB := io.immediate }
-    is(ANDI)  { aluOperandB := io.immediate }
-    is(SLLI)  { aluOperandB := io.immediate }
-    is(SRLI)  { aluOperandB := io.immediate }
-    is(SRAI)  { aluOperandB := io.immediate }
-
-  }
-
   val alu = Module(new ALU)
-
-  alu.io.operandA := forwardedA
-  alu.io.operandB := aluOperandB
-
+  alu.io.operandA := io.inOperandA
+  alu.io.operandB := io.inOperandB
   alu.io.operation := ALUOp.ADD
 
-  switch(io.uop) {
-
-    is(ADD, ADDI)   { alu.io.operation := ALUOp.ADD }
-    is(SUB)         { alu.io.operation := ALUOp.SUB }
-    is(SLL, SLLI)   { alu.io.operation := ALUOp.SLL }
-    is(SLT, SLTI)   { alu.io.operation := ALUOp.SLT }
-    is(SLTU, SLTUI) { alu.io.operation := ALUOp.SLTU }
-    is(XOR, XORI)   { alu.io.operation := ALUOp.XOR }
-    is(SRL, SRLI)   { alu.io.operation := ALUOp.SRL }
-    is(SRA, SRAI)   { alu.io.operation := ALUOp.SRA }
-    is(OR, ORI)     { alu.io.operation := ALUOp.OR }
-    is(AND, ANDI)   { alu.io.operation := ALUOp.AND }
-
-    is(JAL)  { alu.io.operation := ALUOp.ADD }
-    is(JALR) { alu.io.operation := ALUOp.ADD }
-
-    is(NOP) { alu.io.operation := ALUOp.ADD }
+  switch(io.inUOP) {
+    is(ADD) { alu.io.operation := ALUOp.ADD }; is(ADDI) { alu.io.operation := ALUOp.ADD }
+    is(SUB) { alu.io.operation := ALUOp.SUB }
+    is(AND) { alu.io.operation := ALUOp.AND }; is(ANDI) { alu.io.operation := ALUOp.AND }
+    is(OR) { alu.io.operation := ALUOp.OR }; is(ORI) { alu.io.operation := ALUOp.OR }
+    is(XOR) { alu.io.operation := ALUOp.XOR }; is(XORI) { alu.io.operation := ALUOp.XOR }
+    is(SLL) { alu.io.operation := ALUOp.SLL }; is(SLLI) { alu.io.operation := ALUOp.SLL }
+    is(SRL) { alu.io.operation := ALUOp.SRL }; is(SRLI) { alu.io.operation := ALUOp.SRL }
+    is(SRA) { alu.io.operation := ALUOp.SRA }; is(SRAI) { alu.io.operation := ALUOp.SRA }
+    is(SLT) { alu.io.operation := ALUOp.SLT }; is(SLTI) { alu.io.operation := ALUOp.SLT }
+    is(SLTU) { alu.io.operation := ALUOp.SLTU }; is(SLTIU) { alu.io.operation := ALUOp.SLTU }
+    is(NOP) { alu.io.operation := ALUOp.PASSB }
   }
 
-  io.aluResult := alu.io.aluResult
+// Check whether the current instruction is a conditional branch
+  val isBranch = io.inUOP === BEQ || io.inUOP === BNE || io.inUOP === BLT ||
+    io.inUOP === BGE || io.inUOP === BLTU || io.inUOP === BGEU
 
-  when(io.uop === JAL || io.uop === JALR) {
-    io.aluResult := io.pc + 4.U
+// Store the actual branch outcome
+  val actualTaken = WireDefault(false.B)
+
+  // Evaluate the branch condition.
+  switch(io.inUOP) {
+    is(BEQ) { actualTaken := io.inOperandA === io.inOperandB }
+    is(BNE) { actualTaken := io.inOperandA =/= io.inOperandB }
+    is(BLT) { actualTaken := io.inOperandA.asSInt < io.inOperandB.asSInt }
+    is(BGE) { actualTaken := io.inOperandA.asSInt >= io.inOperandB.asSInt }
+    is(BLTU) { actualTaken := io.inOperandA < io.inOperandB }
+    is(BGEU) { actualTaken := io.inOperandA >= io.inOperandB }
   }
 
-  val branchTaken = WireDefault(false.B)
+  // Calculate the actual branch target address
+  val branchTarget = io.inPC + io.inImmB
 
-  switch(io.uop) {
+  // Check whether the predicted branch direction was incorrect
+  val directionWrong = io.inPredictTaken =/= actualTaken
 
-    is(BEQ) {
-      branchTaken := forwardedA === forwardedB
-    }
+  //Check whether predicted branch target address was incorrect
+  val targetWrong = actualTaken && io.inPredictTaken && io.inPredictedTarget =/= branchTarget
 
-    is(BNE) {
-      branchTaken := forwardedA =/= forwardedB
-    }
+  // Determine whether a branch misprediction occurred
+  val branchMispredicted = isBranch && (directionWrong || targetWrong)
 
-    is(BLT) {
-      branchTaken := forwardedA.asSInt < forwardedB.asSInt
-    }
+//Generate a redirect on branch misprediction or jump instructions
+  io.redirect := branchMispredicted || io.inUOP === JAL || io.inUOP === JALR
+  // Select the correct next PC after branch resolution
+  io.redirectPC := Mux(actualTaken, branchTarget, io.inPC + 4.U)
 
-    is(BGE) {
-      branchTaken := forwardedA.asSInt >= forwardedB.asSInt
-    }
-
-    is(BLTU) {
-      branchTaken := forwardedA < forwardedB
-    }
-
-    is(BGEU) {
-      branchTaken := forwardedA >= forwardedB
-    }
-
+  //// Compute the jump target for JAL
+  when(io.inUOP === JAL) {
+    io.redirectPC := io.inPC + io.inImmJ
+  }.elsewhen(io.inUOP === JALR) {
+    io.redirectPC := (io.inOperandA + io.inImmI) & "hfffffffe".U
   }
 
-  io.branchTarget := 0.U
+  io.btbUpdate := isBranch //// Enable BTB update for conditional branch instructions
+  io.btbPC := io.inPC ///provide the branch pc for btb update
+  io.btbTarget := branchTarget  //provide actual pc for btb update
+  // The counter learns direction only... a target mismatch still redirects but
+  // must not be interpreted as a not-taken outcome by the predictor
 
-  switch(io.uop) {
+  // Update the BTB predictor only when the branch direction was mispredicted
+  io.btbMispredicted := isBranch && directionWrong
 
-    is(BEQ, BNE, BLT, BGE, BLTU, BGEU) {
-      io.branchTarget := io.pc + io.immediate
-    }
-
-    is(JAL) {
-      io.branchTarget := io.pc + io.immediate
-    }
-
-    is(JALR) {
-      io.branchTarget := (forwardedA + io.immediate) & "hFFFFFFFE".U
-    }
-
-  }
-
-    val isBranch = WireDefault(false.B)
-    val isJump = WireDefault(false.B)
-
-    switch(io.uop) {
-    is(BEQ, BNE, BLT, BGE, BLTU, BGEU) {
-        isBranch := true.B
-    }
-
-    is(JAL, JALR) {
-        isJump := true.B
-    }
-    }
- 
-  val actualTaken = branchTaken 
-
-  io.actualTaken := actualTaken
-
-    val mispredict = WireDefault(false.B)
-
-    when(isBranch) {
-    mispredict :=
-        (io.predictTaken =/= actualTaken) ||
-        (io.predictTaken &&
-        actualTaken &&
-        (io.predictedTarget =/= io.branchTarget))
-    }
-    when(isJump) {
-    mispredict := true.B
-  }
-
-  io.flush := mispredict
-
-  io.btbUpdate := isBranch
-  io.btbUpdatePC := io.pc
-  io.btbUpdateTarget := io.branchTarget
-
-  io.exception := io.XcptInvalid
-
-  printf(p"[EX] Predict=${io.predictTaken} Actual=${actualTaken} PredTarget=${io.predictedTarget} ActualTarget=${io.branchTarget} Mispredict=${mispredict}\n")
+  // Output PC+4 for jumps; otherwise output the ALU result
+  io.aluResult := Mux(io.inUOP === JAL || io.inUOP === JALR, io.inPC + 4.U, alu.io.aluResult)
+  // Forward the destination register
+  io.outRD := io.inRD
+  // Forward the exception flag
+  io.outXcptInvalid := io.inXcptInvalid
 }
-
-
-
-    
